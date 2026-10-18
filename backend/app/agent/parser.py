@@ -95,31 +95,68 @@ def _rule_based_fallback(prompt: str) -> ParsedIntent:
         )
 
     # 3. Default to failure simulation
-    target = "svc_auth"
-    if "redis" in text or "cache" in text:
-        target = "cache_redis_session"
-    elif "stripe" in text or "gateway" in text:
-        target = "tp_stripe"
-    elif "checkout" in text:
-        target = "svc_checkout"
-    elif "cart" in text:
-        target = "svc_cart"
-    elif "inventory" in text and ("db" in text or "postgres" in text or "lock" in text or "deadlock" in text):
+    # Match specific multi-word infrastructure first
+    if "api-gateway" in text or "api gateway" in text:
+        target = "svc_gateway"
+    elif "fraud" in text:
+        target = "svc_fraud"
+    elif "inventory" in text and ("db" in text or "postgres" in text or "database" in text or "deadlock" in text):
         target = "db_inventory_pg"
     elif "inventory" in text:
         target = "svc_inventory"
-    elif "order" in text and ("db" in text or "postgres" in text or "crash" in text):
+    elif ("order" in text or "orders" in text) and ("db" in text or "postgres" in text or "database" in text or "crash" in text):
         target = "db_order_pg"
-    elif "order" in text:
+    elif "order" in text or "orders" in text:
         target = "svc_order"
-    elif "auth" in text or "authentication" in text:
+    elif "auth" in text and ("db" in text or "postgres" in text or "database" in text):
+        target = "db_auth_pg"
+    elif "auth" in text or "authentication" in text or "login" in text:
         target = "svc_auth"
-    elif "payment" in text:
-        target = "svc_payment"
-    elif "catalog" in text:
+    elif "cart" in text and ("cache" in text or "redis" in text):
+        target = "cache_redis_session"
+    elif "cart" in text:
+        target = "svc_cart"
+    elif "checkout" in text:
+        target = "svc_checkout"
+    elif "payment" in text or "payments" in text:
+        if "stripe" in text:
+            target = "tp_stripe"
+        elif "paypal" in text:
+            target = "tp_paypal"
+        else:
+            target = "svc_payment"
+    elif "stripe" in text:
+        target = "tp_stripe"
+    elif "paypal" in text:
+        target = "tp_paypal"
+    elif "twilio" in text:
+        target = "tp_twilio"
+    elif "sendgrid" in text:
+        target = "tp_sendgrid"
+    elif "datadog" in text:
+        target = "tp_datadog"
+    elif "redis" in text or "cache" in text or "session" in text:
+        target = "cache_redis_session"
+    elif "kafka" in text or "queue" in text or "stream" in text:
+        target = "queue_order_kafka"
+    elif "mongo" in text or "mongodb" in text:
+        target = "db_catalog_mongo"
+    elif "user" in text or "users" in text or "profile" in text:
+        target = "svc_user"
+    elif "catalog" in text or "product" in text or "items" in text:
         target = "svc_catalog"
-    elif "database" in text or "postgres" in text:
-        target = "db_order_pg"
+    elif "search" in text:
+        target = "svc_search"
+    elif "shipping" in text or "logistics" in text:
+        target = "svc_shipping"
+    elif "notification" in text or "email" in text or "sms" in text:
+        target = "svc_notification"
+    elif "recommendation" in text:
+        target = "svc_recommendation"
+    elif "gateway" in text:
+        target = "svc_gateway"
+    else:
+        target = "svc_auth"
 
     return ParsedIntent(
         simulation_type=SimulationType.FAILURE,

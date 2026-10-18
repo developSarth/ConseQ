@@ -27,13 +27,13 @@ services:
       - key: FALKORDB_HOST
         sync: false
       - key: FALKORDB_PORT
-        value: "6379"
+        value: "61923"
       - key: FALKORDB_USERNAME
-        value: default
+        value: falkordb
       - key: FALKORDB_PASSWORD
         sync: false
       - key: FALKORDB_SSL
-        value: "true"
+        value: "false"
       - key: FALKORDB_GRAPH
         value: echo_software
       - key: FALKORDB_QUERY_TIMEOUT_MS

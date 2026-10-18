@@ -279,16 +279,105 @@ window.MOCK_REPORTS = {
     }
   },
 
-  // 4. Default / Auth Failure
+  // 4. Shared Library Upgrade (crypto-jwt)
+  jwt: {
+    id: "echo_jwt_upgrade",
+    prompt: "What if I upgrade crypto-jwt library to version 3.0.0?",
+    type: "upgrade",
+    target_entity: "crypto-jwt",
+    blast_radius_score: 0.0,
+    execution_time_ms: 94.2,
+    fork_graph: "sim_ephemeral",
+    executive_summary: "Assessed dependency ripple effects for upgrading **crypto-jwt** from `2.4.1` to `3.0.0`. Detected **2 dependent microservices** (`auth-service`, `user-service`) and 1 owning team (#team-identity). Major version bump includes breaking signature changes in JWT decoding protocols.",
+    actionable_recommendations: [
+      "Deploy upgrade to 2 services in phased batches: auth-service, user-service.",
+      "Run integration regression suites with Identity & Access Team (#team-identity).",
+      "Verify backward compatibility of serialized tokens and API request schemas before merging."
+    ],
+    upgrade_details: {
+      library_id: "lib_jwt",
+      library_name: "crypto-jwt",
+      current_version: "2.4.1",
+      target_version: "3.0.0",
+      is_major_breaking_bump: true,
+      risk_level: "HIGH",
+      dependent_services: [
+        { service_id: "svc_auth", service_name: "auth-service", tier: 1 },
+        { service_id: "svc_user", service_name: "user-service", tier: 1 }
+      ],
+      dependent_teams: [
+        { id: "team_identity", name: "Identity & Access Team", slack_channel: "#team-identity", oncall_lead: "Sarah Chen" }
+      ],
+      recommended_upgrade_order: ["auth-service", "user-service"]
+    },
+    outage_details: {
+      target_id: "lib_jwt",
+      target_name: "crypto-jwt",
+      target_type: "Library",
+      blast_radius_percent: 0.0,
+      tier1_services_down: 0,
+      tier2_services_down: 0,
+      tier3_services_down: 0,
+      impacted_services: [],
+      broken_endpoints: [],
+      impacted_clients: [],
+      impacted_teams: []
+    }
+  },
+
+  // 5. Payment Service Outage
+  payment_service: {
+    id: "echo_payment_svc_outage",
+    prompt: "What happens if payment-service goes offline?",
+    type: "failure",
+    target_entity: "payment-service",
+    blast_radius_score: 21.4,
+    execution_time_ms: 108.6,
+    fork_graph: "sim_payment_fork",
+    executive_summary: "Simulated outage of core Tier-1 microservice **payment-service**. Direct callers `checkout-service` and `api-gateway` degrade immediately. Transactions cannot be authorized, breaking 2 critical ingress checkout routes.",
+    actionable_recommendations: [
+      "Alert 2 on-call engineering teams immediately via PagerDuty/Slack (#team-checkout, #team-platform).",
+      "Review circuit-breaker coverage across 2 affected services (checkout-service, api-gateway).",
+      "Engage PayPal Backup Gateway fallback provider to resume checkout authorizations."
+    ],
+    outage_details: {
+      target_id: "svc_payment",
+      target_name: "payment-service",
+      target_type: "Service",
+      blast_radius_percent: 21.4,
+      tier1_services_down: 3,
+      tier2_services_down: 0,
+      tier3_services_down: 0,
+      impacted_services: [
+        { id: "svc_checkout", name: "checkout-service", tier: 1, impact: "outage", hops_from_target: 1, team_name: "Checkout Squad" },
+        { id: "svc_gateway", name: "api-gateway", tier: 1, impact: "degraded", hops_from_target: 2, team_name: "Core Platform SRE" }
+      ],
+      broken_endpoints: [
+        { id: "ep_checkout_submit", path: "/api/v1/checkout/submit", method: "POST", status: "outage", service_id: "svc_checkout" },
+        { id: "ep_process_payment", path: "/api/v1/payments/charge", method: "POST", status: "outage", service_id: "svc_payment" }
+      ],
+      impacted_clients: [
+        { id: "app_web", name: "Web Storefront", platform: "web" },
+        { id: "app_ios", name: "iOS Native App", platform: "ios" },
+        { id: "app_android", name: "Android App", platform: "android" }
+      ],
+      impacted_teams: [
+        { id: "team_checkout", name: "Checkout & Billing Team", slack_channel: "#team-checkout", oncall_lead: "Marcus Vance", reason: "Direct owner of payment-service" },
+        { id: "team_platform", name: "Core Platform SRE Team", slack_channel: "#team-platform", oncall_lead: "Alex Rivera", reason: "Gateway routing degradation" }
+      ]
+    }
+  },
+
+  // 6. Default / Auth Failure
   default: {
     id: "echo_auth_outage",
     prompt: "What happens if our authentication service goes offline?",
     type: "failure",
     target_entity: "auth-service",
-    blast_radius_score: 57.1,
+    blast_radius_score: 35.7,
     execution_time_ms: 119.8,
     fork_graph: "sim_auth_fork",
-    executive_summary: "Simulated failure of **auth-service**. The outage immediately impacts **57.1%** of architectural dependency paths. **2 Tier-1 services** (`user-service`, `api-gateway`) and public login routes are non-functional, preventing client token verification and authenticated user access.",
+    executive_summary: "Simulated failure of **auth-service**. The outage immediately impacts **35.7%** of architectural dependency paths. **2 Tier-1 services** (`user-service`, `api-gateway`) and public login routes are non-functional, preventing client token verification and authenticated user access.",
     actionable_recommendations: [
       "Page Identity & Access Team Lead (Sarah Chen) via Slack #team-identity.",
       "Enable JWT token validation grace-period on `api-gateway` to allow active sessions to continue.",
@@ -298,18 +387,16 @@ window.MOCK_REPORTS = {
       target_id: "svc_auth",
       target_name: "auth-service",
       target_type: "Service",
-      blast_radius_percent: 57.1,
+      blast_radius_percent: 35.7,
       tier1_services_down: 2,
       tier2_services_down: 1,
       tier3_services_down: 0,
       impacted_services: [
         { id: "svc_user", name: "user-service", tier: 1, impact: "outage", hops_from_target: 1, team_name: "Identity & Access" },
-        { id: "svc_gateway", name: "api-gateway", tier: 1, impact: "degraded", hops_from_target: 1, team_name: "Core Platform SRE" },
-        { id: "svc_checkout", name: "checkout-service", tier: 1, impact: "degraded", hops_from_target: 2, team_name: "Checkout Squad" }
+        { id: "svc_gateway", name: "api-gateway", tier: 1, impact: "degraded", hops_from_target: 1, team_name: "Core Platform SRE" }
       ],
       broken_endpoints: [
-        { id: "ep_login", path: "/api/v1/auth/login", method: "POST", status: "outage", service_id: "svc_auth" },
-        { id: "ep_checkout_submit", path: "/api/v1/checkout/submit", method: "POST", status: "degraded", service_id: "svc_checkout" }
+        { id: "ep_login", path: "/api/v1/auth/login", method: "POST", status: "outage", service_id: "svc_auth" }
       ],
       impacted_clients: [
         { id: "app_web", name: "Web Storefront", platform: "web" },

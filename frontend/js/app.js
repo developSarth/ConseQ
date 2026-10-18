@@ -7,7 +7,9 @@
  * - 100% Native High-Sensitivity Scrolling & Clean Minimalist Aesthetics
  */
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = (window.location.protocol === "file:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "")
+  ? "http://localhost:8000"
+  : "https://echo-backend-rjls.onrender.com";
 
 class AppState {
   constructor() {
@@ -284,15 +286,34 @@ async function executeSimulation(prompt) {
 function pickMatchingMockReport(prompt) {
   const text = (prompt || "").toLowerCase();
   const reports = window.MOCK_REPORTS || {};
-  if (text.includes("stripe") || text.includes("payment") || text.includes("gateway")) {
+
+  // 1. Library upgrade scenarios
+  if (text.includes("upgrade") || text.includes("jwt") || text.includes("crypto") || text.includes("version 3") || text.includes("v3")) {
+    return reports.jwt || reports.default;
+  }
+
+  // 2. Stripe payment gateway vs payment-service
+  if (text.includes("stripe")) {
     return reports.stripe || reports.default;
   }
-  if (text.includes("redis") || text.includes("cart") || text.includes("session")) {
+  if (text.includes("payment-service") || text.includes("payment service") || (text.includes("payment") && !text.includes("gateway"))) {
+    return reports.payment_service || reports.stripe || reports.default;
+  }
+  if (text.includes("gateway") && !text.includes("api-gateway")) {
+    return reports.stripe || reports.default;
+  }
+
+  // 3. Redis / Session Cache
+  if (text.includes("redis") || text.includes("session") || text.includes("cache")) {
     return reports.redis || reports.default;
   }
+
+  // 4. Orders Datastore / Order Service
   if (text.includes("order") && (text.includes("db") || text.includes("database") || text.includes("postgres") || text.includes("crash"))) {
     return reports.order_db || reports.default;
   }
+
+  // 5. Auth Service / Login / Default
   return reports.default || window.MOCK_FAILURE_REPORT;
 }
 
