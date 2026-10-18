@@ -71,6 +71,28 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     gemini_model: str = Field(default="gemini-2.5-flash")
 
+    @field_validator("gemini_api_key", mode="before")
+    @classmethod
+    def sanitize_gemini_api_key(cls, v: Any) -> Any:
+        if isinstance(v, str) and (v.startswith("your_") or "placeholder" in v.lower() or not v.strip()):
+            # Fallback to repo-root .env file
+            env_path = REPO_ROOT / ".env"
+            if env_path.exists():
+                try:
+                    from dotenv import dotenv_values
+                    env_vals = dotenv_values(env_path)
+                    real_key = env_vals.get("GEMINI_API_KEY")
+                    if real_key and not real_key.startswith("your_"):
+                        return real_key.strip()
+                except Exception:
+                    pass
+            import os
+            new_key = os.environ.get("GEMINI_API_KEY_NEW")
+            if new_key and not new_key.startswith("your_"):
+                return new_key.strip()
+            return None
+        return v
+
 
 @lru_cache
 def get_settings() -> Settings:
