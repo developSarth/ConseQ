@@ -1,0 +1,56 @@
+# =============================================================================
+# ECHO — Render Blueprint (Infrastructure as Code)
+# Docs: https://render.com/docs/blueprint-spec
+# =============================================================================
+
+services:
+  - type: web
+    name: echo-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # --- App runtime settings
+      - key: ENVIRONMENT
+        value: prod
+      - key: LOG_LEVEL
+        value: INFO
+      - key: CORS_ORIGINS
+        value: "*"
+
+      # --- FalkorDB Cloud (fill in Render dashboard)
+      - key: FALKORDB_HOST
+        sync: false
+      - key: FALKORDB_PORT
+        value: "6379"
+      - key: FALKORDB_USERNAME
+        value: default
+      - key: FALKORDB_PASSWORD
+        sync: false
+      - key: FALKORDB_SSL
+        value: "true"
+      - key: FALKORDB_GRAPH
+        value: echo_software
+      - key: FALKORDB_QUERY_TIMEOUT_MS
+        value: "30000"
+
+      # --- Simulation limits
+      - key: MAX_CONCURRENT_FORKS
+        value: "5"
+      - key: FORK_TTL_MINUTES
+        value: "30"
+
+      # --- AI (Google AI Studio Gemini API Key)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+
+      # --- Optional: Auto-seed software graph on initial startup
+      - key: SEED_ON_STARTUP
+        value: "false"
