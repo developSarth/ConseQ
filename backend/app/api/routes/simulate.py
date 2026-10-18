@@ -62,7 +62,7 @@ def get_preset_scenarios() -> list[dict[str, Any]]:
             "type": "failure",
             "prompt": "What happens if our authentication service goes offline?",
             "target": "auth-service",
-            "description": "Simulates complete loss of auth-service and traces multi-hop breakage locking out 105,000 active shopping carts.",
+            "description": "Simulates complete loss of auth-service and traces multi-hop breakage across session validation and dependent services.",
             "badge": "Funnel Outage",
         },
         {

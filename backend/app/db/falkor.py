@@ -128,12 +128,15 @@ class GraphStore:
         except _TRANSIENT as exc:
             self._db = None
             raise GraphUnavailableError(f"FalkorDB ping failed: {exc}") from exc
+        # Project graph IDs are bearer-like identifiers used by project routes.
+        # Keep them out of the unauthenticated diagnostics response.
+        visible_graphs = [name for name in graphs if not str(name).startswith("proj_")]
         return {
             "host": f"{self._s.falkordb_host}:{self._s.falkordb_port}",
             "latency_ms": round(ping_ms, 2),
             "graph": self._s.falkordb_graph,
             "graph_exists": self._s.falkordb_graph in graphs,
-            "graphs": graphs,
+            "graphs": visible_graphs,
         }
 
     def is_healthy(self) -> bool:

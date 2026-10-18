@@ -46,8 +46,14 @@ class SlidingWindowRateLimiter:
 
 
 simulation_rate_limiter = SlidingWindowRateLimiter(max_requests=10, window_seconds=60.0)
+project_ingest_rate_limiter = SlidingWindowRateLimiter(max_requests=3, window_seconds=60.0)
 
 
 def rate_limit_simulation(request: Request) -> None:
     """FastAPI dependency to rate limit /simulate calls."""
     simulation_rate_limiter.check(request)
+
+
+def rate_limit_project_ingest(request: Request) -> None:
+    """Keep archive parsing and graph writes from being flooded per client IP."""
+    project_ingest_rate_limiter.check(request)

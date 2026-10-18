@@ -1,25 +1,25 @@
 /* ==========================================================================
-   ConseQ / ECHO — Liquid Glassmorphism & Motion Styles
-   Theme: Minimalist, Liquid Glass, 10% Organic Randomness, Zero Horizontal Shift
+   Echo — Software Architecture Resilience & Blast Radius Simulator
+   Typography: Arimo (Strictly Logo Brand Mark Only) & Manrope (Slim Thickness for all UI)
+   Aesthetics: Deep Obsidian Slate, Razor 1px Borders, Balanced Proportions, Restrained Glow
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Arimo:wght@700;800&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@200;300;400;500;600&display=swap');
 
 :root {
-  --bg-base: #080a0f;
-  --bg-surface: rgba(14, 18, 27, 0.65);
-  --bg-surface-elevated: rgba(20, 26, 39, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(255, 255, 255, 0.2);
-  --glass-shine: rgba(255, 255, 255, 0.15);
+  --bg-base: #06080d;
+  --bg-surface: rgba(12, 16, 23, 0.76);
+  --bg-surface-elevated: rgba(16, 22, 33, 0.88);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  --border-focus: rgba(56, 189, 248, 0.45);
   --accent-cyan: #38bdf8;
-  --accent-indigo: #818cf8;
-  --accent-rose: #f43f5e;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
 }
 
-/* Base reset & horizontal shift guard */
+/* Base reset & layout guards */
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -32,225 +32,177 @@ html, body {
   overflow-x: hidden;
   background-color: var(--bg-base);
   color: #e2e8f0;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300; /* Manrope with slim thickness for the entire site */
+  letter-spacing: -0.015em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom smooth scrollbar */
+/* Arimo ONLY for logo */
+.font-logo {
+  font-family: 'Arimo', sans-serif !important;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+/* Manrope for all headings and text */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: -0.025em;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.font-slim {
+  font-weight: 200;
+}
+
+.font-light {
+  font-weight: 300;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.015em;
+}
+
+/* High-end Metallic Text Gradient */
+.text-gradient-silver {
+  background: linear-gradient(180deg, #ffffff 15%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Crisp minimal scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(8, 10, 15, 0.8);
+  background: #06080d;
 }
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
-  border: 2px solid rgba(8, 10, 15, 0.8);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.22);
 }
 
-/* Code & Mono */
-.font-mono {
-  font-family: 'JetBrains Mono', monospace;
-}
-
-/* ==========================================================================
-   Liquid Glassmorphism Core Utilities
-   ========================================================================== */
-
+/* Clean glass surfaces (Subtle & Restrained) */
 .liquid-glass {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0.01) 100%
-  ), var(--bg-surface);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  box-shadow: 
-    0 8px 32px 0 rgba(0, 0, 0, 0.45),
-    inset 0 1px 1px 0 var(--glass-shine);
-  border-radius: 1rem;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.25s ease;
+  background: var(--bg-surface);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.liquid-glass-interactive {
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .liquid-glass-interactive:hover {
-  border-color: var(--glass-border-hover);
-  box-shadow: 
-    0 12px 40px 0 rgba(0, 0, 0, 0.6),
-    inset 0 1px 2px 0 rgba(255, 255, 255, 0.25);
+  border-color: var(--border-hover);
+  background: var(--bg-surface-elevated);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 26px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
 .liquid-glass-pill {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-subtle);
   border-radius: 9999px;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
 }
 
 .liquid-glass-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--border-hover);
 }
 
-/* Glowing Border Accent */
-.glass-glow-cyan {
-  box-shadow: 
-    0 0 25px -5px rgba(56, 189, 248, 0.25),
-    0 8px 32px 0 rgba(0, 0, 0, 0.45),
-    inset 0 1px 1px 0 rgba(56, 189, 248, 0.3);
-  border-color: rgba(56, 189, 248, 0.4);
-}
-
-.glass-glow-rose {
-  box-shadow: 
-    0 0 25px -5px rgba(244, 63, 94, 0.3),
-    0 8px 32px 0 rgba(0, 0, 0, 0.45),
-    inset 0 1px 1px 0 rgba(244, 63, 94, 0.35);
-  border-color: rgba(244, 63, 94, 0.45);
-}
-
-.glass-glow-emerald {
-  box-shadow: 
-    0 0 25px -5px rgba(16, 185, 129, 0.25),
-    0 8px 32px 0 rgba(0, 0, 0, 0.45),
-    inset 0 1px 1px 0 rgba(16, 185, 129, 0.35);
-  border-color: rgba(16, 185, 129, 0.4);
-}
-
-/* ==========================================================================
-   10% Organic Randomness: Ambient Fluid Orbs
-   ========================================================================== */
-
-.ambient-orb-container {
-  position: fixed;
-  inset: 0;
+/* Subtle architectural radial backdrop glow */
+.hero-glow {
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 680px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(129, 140, 248, 0.03) 45%, transparent 70%);
+  filter: blur(80px);
   pointer-events: none;
   z-index: 0;
-  overflow: hidden;
 }
 
-.ambient-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.35;
-  mix-blend-mode: screen;
-  will-change: transform;
-}
-
-.orb-1 {
-  top: -10%;
-  left: 20%;
-  width: 550px;
-  height: 550px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, transparent 70%);
-  animation: orb-drift-1 28s ease-in-out infinite alternate;
-}
-
-.orb-2 {
-  top: 45%;
-  right: -5%;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, transparent 70%);
-  animation: orb-drift-2 34s ease-in-out infinite alternate;
-}
-
-.orb-3 {
-  bottom: -15%;
-  left: 5%;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, transparent 70%);
-  animation: orb-drift-3 26s ease-in-out infinite alternate;
-}
-
-@keyframes orb-drift-1 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(40px, 60px) scale(1.08); }
-  100% { transform: translate(-30px, 30px) scale(0.95); }
-}
-
-@keyframes orb-drift-2 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-60px, -40px) scale(1.12); }
-  100% { transform: translate(-20px, 50px) scale(0.92); }
-}
-
-@keyframes orb-drift-3 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(50px, -30px) scale(1.05); }
-  100% { transform: translate(-40px, -60px) scale(1); }
-}
-
-/* Subtle background grid */
+/* Background Subtle Grid Texture (Engineering precision) */
 .grid-overlay {
-  background-size: 40px 40px;
+  background-size: 32px 32px;
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
 }
 
-/* ==========================================================================
-   Simulation Radar Pulse & Impact Wave
-   ========================================================================== */
-
-.radar-ping {
+/* Metric Cards with Severity Top Highlight */
+.card-metric {
   position: relative;
+  overflow: hidden;
+  background: rgba(10, 14, 21, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.75rem;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
 }
 
-.radar-ping::before {
+.card-metric::before {
   content: '';
   position: absolute;
-  inset: -6px;
-  border-radius: inherit;
-  border: 1px solid var(--accent-cyan);
-  opacity: 0.8;
-  animation: ping-wave 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-@keyframes ping-wave {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  75%, 100% { transform: scale(1.35); opacity: 0; }
-}
-
-/* Blast radius impact ring */
-.blast-ring {
-  background: conic-gradient(
-    from 180deg at 50% 50%,
-    #f43f5e 0deg,
-    #f59e0b 120deg,
-    #10b981 240deg,
-    #f43f5e 360deg
-  );
-}
-
-/* Interactive Graph Canvas Container */
-#topology-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.4;
 }
 
 /* Markdown styling inside executive briefing */
 .executive-summary-content p {
-  margin-bottom: 0.75rem;
-  line-height: 1.6;
+  margin-bottom: 0.65rem;
+  line-height: 1.65;
+  font-weight: 300;
 }
+
+.executive-summary-content p:last-child {
+  margin-bottom: 0;
+}
+
 .executive-summary-content strong {
-  color: #38bdf8;
-  font-weight: 600;
+  color: #f8fafc;
+  font-weight: 500;
 }
-.executive-summary-content ul {
-  list-style-type: disc;
-  margin-left: 1.25rem;
-  margin-bottom: 0.75rem;
+
+.executive-summary-content code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8125rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  background-color: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #38bdf8;
 }

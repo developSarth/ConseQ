@@ -35,6 +35,7 @@ from app.schemas.simulation import (
     UpgradeImpactResult,
 )
 from app.services.fork import ForkManager
+from app.services.project_ids import is_project_graph_id
 
 log = logging.getLogger("app.agent.runner")
 
@@ -93,6 +94,11 @@ def run_simulation(
 
     # 1. Parse user intent (Gemini Flash or rule fallback)
     source_graph = request.graph or settings.falkordb_graph
+    if source_graph != settings.falkordb_graph:
+        if not is_project_graph_id(source_graph):
+            raise InvalidSimulationTargetError("Only registered-format project graph IDs may be selected.")
+        if source_graph not in store.db.list_graphs():
+            raise TargetNotFoundError("The selected project graph no longer exists.")
     intent = parse_intent(request.prompt, settings)
     sim_type = request.simulation_type or intent.simulation_type
     target_name = request.target_id or intent.target_name

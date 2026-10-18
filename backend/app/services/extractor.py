@@ -32,6 +32,7 @@ IGNORE_DIRS = {
 
 # Max files to inspect to avoid pathological runtimes
 MAX_FILES_SCANNED = 5000
+MAX_SOURCE_FILE_SIZE_BYTES = 2 * 1024 * 1024
 
 # Route matching patterns
 PY_ROUTE_RE = re.compile(
@@ -118,10 +119,17 @@ def extract_topology_from_directory(root_dir: Path, project_name: str | None = N
         if any(part in IGNORE_DIRS or part.startswith(".") for part in path.parts[:-1]):
             continue
 
+        if path.is_symlink() or any(parent.is_symlink() for parent in path.parents if parent != root_dir):
+            continue
         if not path.is_file():
             continue
 
         files_visited += 1
+        try:
+            if path.stat().st_size > MAX_SOURCE_FILE_SIZE_BYTES:
+                continue
+        except OSError:
+            continue
         name_lower = path.name.lower()
 
         if name_lower in ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"):
@@ -248,7 +256,10 @@ def _parse_package_json(path: Path, topo: ExtractedTopology, team_id: str) -> No
     except Exception:
         return
 
+    if not isinstance(data, dict):
+        return
     pkg_name = str(data.get("name", "")).strip().lower()
+
     if pkg_name:
         clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '', pkg_name)
         svc_id = f"svc_{clean_name.replace('-', '_')}"
@@ -267,8 +278,10 @@ def _parse_package_json(path: Path, topo: ExtractedTopology, team_id: str) -> No
         current_svc_id = next(iter(topo.services.keys())) if topo.services else None
 
     deps: dict[str, str] = {}
-    deps.update(data.get("dependencies", {}))
-    deps.update(data.get("devDependencies", {}))
+    for key in ("dependencies", "devDependencies"):
+        raw_deps = data.get(key, {})
+        if isinstance(raw_deps, dict):
+            deps.update(raw_deps)
 
     for dep_name, version in deps.items():
         dep_lower = dep_name.lower()

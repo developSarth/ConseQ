@@ -5,15 +5,19 @@ from __future__ import annotations
 import io
 import logging
 import re
+import shutil
+import stat
 import tempfile
 import time
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any
+from pathlib import PurePosixPath, PureWindowsPath
 
 from app.db.falkor import GraphStore
 from app.db.schema import ensure_schema
+from app.core.config import REPO_ROOT
+from app.core.middleware import GraphUnavailableError
 from app.schemas.project import IngestResponse
 from app.services.extractor import ExtractedTopology, extract_topology_from_directory
 
@@ -23,6 +27,7 @@ log = logging.getLogger("app.services.ingest")
 MAX_ARCHIVE_SIZE_BYTES = 50 * 1024 * 1024       # 50 MB
 MAX_UNCOMPRESSED_SIZE_BYTES = 150 * 1024 * 1024  # 150 MB
 MAX_ARCHIVE_FILE_COUNT = 5000
+MAX_COMPRESSION_RATIO = 1000
 
 
 class IngestionError(Exception):
@@ -68,23 +73,49 @@ def ingest_zip_archive(
                         f"Uncompressed archive size ({total_uncompressed // (1024*1024)}MB) exceeds limit."
                     )
 
-                # 2. Extract safely
+                # 2. Validate and extract safely. Reject Windows-style path
+                # components on every platform to avoid cross-platform Zip-Slip.
                 for member in infolist:
-                    target_path = (tmp_dir / member.filename).resolve()
+                    raw_name = member.filename
+                    posix_name = PurePosixPath(raw_name)
+                    windows_name = PureWindowsPath(raw_name)
+                    if (not raw_name or "\\" in raw_name or "\x00" in raw_name
+                            or posix_name.is_absolute() or windows_name.is_absolute()
+                            or windows_name.drive
+                            or ".." in posix_name.parts
+                            or stat.S_ISLNK(member.external_attr >> 16)):
+                        raise SecurityValidationError(
+                            f"Illegal path traversal detected in archive: '{member.filename}'"
+                        )
+                    if member.file_size and (
+                        member.compress_size == 0
+                        or member.file_size / member.compress_size > MAX_COMPRESSION_RATIO
+                    ):
+                        raise SecurityValidationError(
+                            f"Archive member has an unsafe compression ratio: '{member.filename}'"
+                        )
+                    target_path = (tmp_dir / Path(*posix_name.parts)).resolve()
                     if not target_path.is_relative_to(tmp_dir.resolve()):
                         raise SecurityValidationError(
                             f"Illegal path traversal detected in archive: '{member.filename}'"
                         )
-                    zf.extract(member, tmp_dir)
+                    if member.is_dir():
+                        target_path.mkdir(parents=True, exist_ok=True)
+                        continue
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    with zf.open(member) as source, target_path.open("wb") as target:
+                        shutil.copyfileobj(source, target, length=1024 * 1024)
 
         except zipfile.BadZipFile as exc:
             raise IngestionError("Uploaded file is not a valid or readable ZIP archive.") from exc
+        except (RuntimeError, NotImplementedError) as exc:
+            raise IngestionError("Uploaded ZIP uses unsupported compression or encryption.") from exc
 
         # 3. Analyze codebase
         topo = extract_topology_from_directory(tmp_dir, project_name=clean_proj_name)
 
     # 4. Populate dedicated project graph in FalkorDB
-    project_id = f"proj_{uuid.uuid4().hex[:8]}"
+    project_id = f"proj_{uuid.uuid4().hex}"
     _populate_project_graph(topo, project_id, store)
 
     elapsed_ms = (time.monotonic() - start_time) * 1000.0
@@ -122,11 +153,13 @@ def ingest_local_directory(
 
     if not dir_path.exists() or not dir_path.is_dir():
         raise IngestionError(f"Directory '{directory_path}' does not exist or is not a directory.")
+    if not dir_path.is_relative_to(REPO_ROOT.resolve()):
+        raise SecurityValidationError("Directory ingestion is restricted to the application workspace.")
 
     clean_proj_name = project_name or dir_path.name or "Local Project"
     topo = extract_topology_from_directory(dir_path, project_name=clean_proj_name)
 
-    project_id = f"proj_{uuid.uuid4().hex[:8]}"
+    project_id = f"proj_{uuid.uuid4().hex}"
     _populate_project_graph(topo, project_id, store)
 
     elapsed_ms = (time.monotonic() - start_time) * 1000.0
@@ -157,83 +190,53 @@ def _populate_project_graph(topo: ExtractedTopology, graph_name: str, store: Gra
     """Initializes schema and merges all extracted nodes and relationships into FalkorDB."""
     log.info("Populating extracted project topology into '%s'...", graph_name)
 
-    # 1. Ensure indexes & constraints on the new graph
     try:
         ensure_schema(store, graph=graph_name)
-    except Exception as exc:
-        log.warning("Schema setup on '%s' had warning (%s); proceeding with MERGE", graph_name, exc)
 
-    # 2. Merge Teams
-    for t in topo.teams.values():
-        store.query(
-            """MERGE (tm:Team {id: $id})
-               SET tm.name = $name, tm.slack_channel = $slack, tm.oncall_lead = $lead""",
-            {"id": t["id"], "name": t["name"], "slack": t.get("slack_channel", ""), "lead": t.get("oncall_lead", "")},
-            graph=graph_name,
+        node_groups = (
+            ("Team", list(topo.teams.values())),
+            ("ClientApp", list(topo.client_apps.values())),
+            ("Service", list(topo.services.values())),
+            ("Database", list(topo.databases.values())),
+            ("ThirdParty", list(topo.third_parties.values())),
+            ("Library", list(topo.libraries.values())),
+            ("APIEndpoint", list(topo.endpoints.values())),
         )
+        for label, rows in node_groups:
+            if rows:
+                store.query(
+                    f"UNWIND $rows AS row MERGE (n:{label} {{id: row.id}}) SET n += row",
+                    {"rows": rows},
+                    graph=graph_name,
+                )
 
-    # 3. Merge Client Apps
-    for c in topo.client_apps.values():
-        store.query(
-            """MERGE (ca:ClientApp {id: $id})
-               SET ca.name = $name, ca.platform = $platform, ca.active_users = $users""",
-            {"id": c["id"], "name": c["name"], "platform": c.get("platform", "web"), "users": c.get("active_users", 10000)},
-            graph=graph_name,
-        )
-
-    # 4. Merge Services
-    for s in topo.services.values():
-        store.query(
-            """MERGE (svc:Service {id: $id})
-               SET svc.name = $name, svc.tier = $tier, svc.status = $status, svc.language = $lang""",
-            {"id": s["id"], "name": s["name"], "tier": s.get("tier", 1), "status": s.get("status", "healthy"), "lang": s.get("language", "polyglot")},
-            graph=graph_name,
-        )
-
-    # 5. Merge Databases
-    for d in topo.databases.values():
-        store.query(
-            """MERGE (db:Database {id: $id})
-               SET db.name = $name, db.type = $type, db.tier = $tier""",
-            {"id": d["id"], "name": d["name"], "type": d.get("type", "postgresql"), "tier": d.get("tier", 1)},
-            graph=graph_name,
-        )
-
-    # 6. Merge Third Parties
-    for tp in topo.third_parties.values():
-        store.query(
-            """MERGE (t:ThirdParty {id: $id})
-               SET t.name = $name, t.category = $cat, t.tier = $tier""",
-            {"id": tp["id"], "name": tp["name"], "cat": tp.get("category", "payment"), "tier": tp.get("tier", 1)},
-            graph=graph_name,
-        )
-
-    # 7. Merge Libraries
-    for lib in topo.libraries.values():
-        store.query(
-            """MERGE (l:Library {id: $id})
-               SET l.name = $name, l.version = $ver, l.latest_version = $latest""",
-            {"id": lib["id"], "name": lib["name"], "ver": lib.get("version", "1.0.0"), "latest": lib.get("latest_version", "2.0.0")},
-            graph=graph_name,
-        )
-
-    # 8. Merge Endpoints
-    for ep in topo.endpoints.values():
-        store.query(
-            """MERGE (e:APIEndpoint {id: $id})
-               SET e.path = $path, e.method = $method""",
-            {"id": ep["id"], "path": ep["path"], "method": ep["method"]},
-            graph=graph_name,
-        )
-
-    # 9. Merge Relationships
-    for src, tgt, rel in topo.edges:
-        if rel in ("CALLS", "ROUTED_TO", "CONNECTS_TO", "INTEGRATES_WITH", "USES_LIBRARY", "OWNED_BY"):
+        allowed_relationships = {
+            "CALLS", "ROUTED_TO", "CONNECTS_TO", "INTEGRATES_WITH", "USES_LIBRARY", "OWNED_BY"
+        }
+        by_relationship: dict[str, list[dict[str, str]]] = {}
+        for src, tgt, rel in topo.edges:
+            if rel in allowed_relationships:
+                by_relationship.setdefault(rel, []).append({"src": src, "tgt": tgt})
+        for rel, rows in by_relationship.items():
             store.query(
-                f"""MATCH (a {{id: $src}}), (b {{id: $tgt}})
-                   MERGE (a)-[r:{rel}]->(b)""",
-                {"src": src, "tgt": tgt},
+                f"""UNWIND $rows AS row
+                    MATCH (a {{id: row.src}}), (b {{id: row.tgt}})
+                    MERGE (a)-[r:{rel}]->(b)""",
+                {"rows": rows},
                 graph=graph_name,
             )
+    except GraphUnavailableError:
+        try:
+            store.graph(graph_name).delete()
+        except Exception:
+            log.exception("Could not remove incomplete project graph '%s' after DB loss", graph_name)
+        raise
+    except Exception as exc:
+        # Never leave a half-ingested graph that callers may mistake for ready.
+        try:
+            store.graph(graph_name).delete()
+        except Exception:
+            log.exception("Could not remove incomplete project graph '%s'", graph_name)
+        raise IngestionError("Could not initialize or populate the project graph.") from exc
 
     log.info("Populated project graph '%s' successfully.", graph_name)
