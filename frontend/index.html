@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ConseQ / ECHO — E-Commerce Reliability & Blast Radius Simulator</title>
+  <meta name="description" content="Dedicated AI-powered failure & outage simulator for high-concurrency online retail. Simulates flash sale payment timeouts, cart session drops, and inventory deadlocks in isolated FalkorDB memory forks." />
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS v3 via Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            obsidian: '#080a0f',
+            surface: 'rgba(14, 18, 27, 0.75)',
+            accent: {
+              cyan: '#38bdf8',
+              indigo: '#818cf8',
+              rose: '#f43f5e',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Custom Liquid Glassmorphism Styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- GSAP Core (for subtle non-blocking reveals) -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+</head>
+
+<body class="bg-obsidian text-slate-100 min-h-screen relative overflow-x-hidden w-full selection:bg-cyan-500/30 selection:text-cyan-200">
+
+  <!-- Smart Ambient Background Network Canvas (pointer-events: none) -->
+  <div class="ambient-orb-container" aria-hidden="true">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+    <canvas id="ambient-network-canvas" class="fixed inset-0 w-full h-full pointer-events-none z-0"></canvas>
+  </div>
+
+  <!-- Background Grid Texture -->
+  <div class="fixed inset-0 grid-overlay pointer-events-none z-0"></div>
+
+  <!-- Main Application Wrapper -->
+  <div id="app" class="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+
+    <!-- Top Navigation & Telemetry Bar -->
+    <header class="anim-header liquid-glass p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3.5">
+        <div class="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500/30 to-indigo-500/20 border border-cyan-400/30 flex items-center justify-center shadow-lg shadow-cyan-500/10">
+          <span class="w-3.5 h-3.5 rounded-full bg-cyan-400 radar-ping"></span>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">ConseQ <span class="text-xs font-mono font-medium text-cyan-400 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">E-COMMERCE ECHO</span></h1>
+          </div>
+          <p class="text-[11px] text-slate-400 font-medium">ApexCommerce Cloud • Reliability & Outage Simulator</p>
+        </div>
+      </div>
+
+      <!-- Live Backend & Store Telemetry Indicators -->
+      <div class="flex items-center space-x-2 sm:space-x-3 text-xs">
+        <div id="status-badge" class="liquid-glass-pill px-3 py-1.5 flex items-center space-x-2">
+          <span id="status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="status-text" class="text-slate-300 font-mono text-[11px]">Connecting...</span>
+        </div>
+        <span id="latency-pill" class="hidden liquid-glass-pill px-2.5 py-1.5 text-slate-400 font-mono text-[11px]">--ms</span>
+
+        <!-- Codebase Ingestion Modal Trigger -->
+        <button
+          id="btn-open-ingest"
+          type="button"
+          class="liquid-glass-pill px-3 py-1.5 text-xs text-cyan-300 border-cyan-500/30 hover:border-cyan-400 hover:text-white flex items-center space-x-1.5 transition-all cursor-pointer shadow-sm shadow-cyan-500/10"
+        >
+          <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <span class="font-mono text-[11px]">Ingest Repo (.zip)</span>
+        </button>
+
+        <!-- Store Microservices Stats -->
+        <div class="hidden lg:flex items-center space-x-2 pl-2 border-l border-white/10 text-[11px] font-mono text-slate-400">
+          <div class="flex items-center space-x-1">
+            <span id="stat-nodes" class="text-slate-200 font-semibold">32</span>
+            <span>nodes</span>
+          </div>
+          <span>•</span>
+          <div class="flex items-center space-x-1">
+            <span id="stat-services" class="text-slate-200 font-semibold">14</span>
+            <span>services</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="text-center pt-2 sm:pt-4 pb-1 space-y-3 max-w-3xl mx-auto">
+      <div class="anim-hero-item inline-flex items-center space-x-2 liquid-glass-pill px-3 py-1 text-xs text-cyan-300 border-cyan-500/20">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+        <span class="font-mono">FalkorDB Graph Isolation Engine • E-Commerce Reliability Center</span>
+      </div>
+      <h2 class="anim-hero-item text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
+        Simulate E-Commerce Outages <br class="hidden sm:inline" />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-300 to-rose-400">Before They Strike Black Friday Revenue.</span>
+      </h2>
+      <p class="anim-hero-item text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
+        Ask natural language questions. ECHO clones the live retail graph into an isolated FalkorDB memory fork, injecting payment gateway timeouts, cart cache evictions, and database deadlocks to quantify exact revenue at risk, cart drop-off, and cascading multi-hop outages in milliseconds.
+      </p>
+    </section>
+
+    <!-- Hard-Coded E-Commerce Store Facts & Baseline Metrics Grid -->
+    <section class="anim-hero-item">
+      <div class="liquid-glass p-4 sm:p-5 border-cyan-500/20">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <h3 class="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300">
+              Store Platform Baseline & Hard-Coded Telemetry
+            </h3>
+          </div>
+          <span class="text-[11px] font-mono text-cyan-400">ApexCommerce Global Retail</span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <!-- Metric 1: Daily GMV -->
+          <div class="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+            <span class="text-[10px] font-mono uppercase text-slate-400 block mb-0.5">Daily Gross Merchandise (GMV)</span>
+            <div class="text-xl sm:text-2xl font-bold font-mono text-emerald-400">$4,250,000</div>
+            <span class="text-[10px] text-slate-500">Global Omni-Channel</span>
+          </div>
+
+          <!-- Metric 2: Peak Shoppers -->
+          <div class="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+            <span class="text-[10px] font-mono uppercase text-slate-400 block mb-0.5">Peak Active Shoppers</span>
+            <div class="text-xl sm:text-2xl font-bold font-mono text-cyan-400">105,000</div>
+            <span class="text-[10px] text-slate-500">Web (45k) • iOS (28k) • Android (32k)</span>
+          </div>
+
+          <!-- Metric 3: Average Order Value -->
+          <div class="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+            <span class="text-[10px] font-mono uppercase text-slate-400 block mb-0.5">Average Order Value (AOV)</span>
+            <div class="text-xl sm:text-2xl font-bold font-mono text-indigo-300">$84.50</div>
+            <span class="text-[10px] text-slate-500">3.2% Cart Conversion</span>
+          </div>
+
+          <!-- Metric 4: Peak Order Rate & Risk -->
+          <div class="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+            <span class="text-[10px] font-mono uppercase text-slate-400 block mb-0.5">Peak Checkout Velocity</span>
+            <div class="text-xl sm:text-2xl font-bold font-mono text-rose-400">450 <span class="text-xs text-slate-400 font-sans">orders/min</span></div>
+            <span class="text-[10px] text-rose-400/90 font-mono font-medium">$38,025 / min revenue flow</span>
+          </div>
+        </div>
+
+        <!-- Checkout Funnel Architecture Strip -->
+        <div class="mt-3 pt-2.5 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-mono gap-2">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-slate-500">Checkout Pipeline:</span>
+            <span class="text-slate-300">Storefront</span>
+            <span class="text-cyan-400">➔</span>
+            <span class="text-slate-300">API Gateway</span>
+            <span class="text-cyan-400">➔</span>
+            <span class="text-slate-300">Cart (Redis)</span>
+            <span class="text-cyan-400">➔</span>
+            <span class="text-slate-300">Checkout</span>
+            <span class="text-cyan-400">➔</span>
+            <span class="text-slate-300">Stripe (w/ PayPal)</span>
+            <span class="text-cyan-400">➔</span>
+            <span class="text-slate-300">Orders (Postgres)</span>
+          </div>
+          <div class="text-emerald-400 flex items-center space-x-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>All 14 Store Microservices Operational</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Control Console: Pure Prompt-Only Input -->
+    <section id="console-section" class="space-y-4">
+
+      <!-- Ingested Project Indicator (Hidden until repository is ingested) -->
+      <div id="active-project-banner" class="hidden liquid-glass p-3.5 border-cyan-500/30 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div class="flex items-center space-x-2.5 text-cyan-300">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span>Active Codebase Graph:</span>
+          <strong id="active-project-name" class="text-white font-bold text-sm">Custom Project</strong>
+          <span id="active-project-stats" class="text-slate-400 font-sans text-xs">(0 nodes, 0 edges)</span>
+        </div>
+        <button id="btn-reset-project" type="button" class="liquid-glass-pill px-3 py-1 text-slate-300 hover:text-white hover:border-cyan-400 transition-all cursor-pointer">
+          Switch to ApexCommerce Baseline
+        </button>
+      </div>
+
+      <div class="liquid-glass p-5 sm:p-6 shadow-2xl">
+        <form id="simulation-form" class="space-y-3">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              id="prompt-input"
+              type="text"
+              autocomplete="off"
+              placeholder="e.g. What happens if Stripe payment gateway times out during flash sale?"
+              class="w-full pl-12 pr-44 py-4 text-sm sm:text-base rounded-xl bg-slate-950/80 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-500/20 transition-all font-sans"
+            />
+            <button
+              id="btn-run-simulation"
+              type="submit"
+              class="absolute right-2 top-2 bottom-2 px-4 sm:px-6 rounded-lg bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-medium text-xs sm:text-sm flex items-center space-x-2 shadow-lg shadow-cyan-500/25 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg id="run-spinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span id="run-btn-text">Simulate Blast Radius</span>
+              <svg class="w-4 h-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Prompt Quick Chips (Instant Fill & Run) -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-slate-500 font-mono mr-1">Quick Scenarios:</span>
+              <button type="button" class="quick-chip liquid-glass-pill px-2.5 py-1 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 transition-all cursor-pointer font-sans" data-prompt="What happens if Stripe payment gateway experiences connection pool exhaustion during flash sale?">
+                ⚡ Stripe Gateway Timeout
+              </button>
+              <button type="button" class="quick-chip liquid-glass-pill px-2.5 py-1 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 transition-all cursor-pointer font-sans" data-prompt="What happens if Session Redis cluster fails during peak 105k concurrent cart sessions?">
+                🛒 Redis Cart Collapse
+              </button>
+              <button type="button" class="quick-chip liquid-glass-pill px-2.5 py-1 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 transition-all cursor-pointer font-sans" data-prompt="Simulate inventory-service PostgreSQL row lock deadlock during high-concurrency cart reserve">
+                📦 Inventory DB Lockup
+              </button>
+              <button type="button" class="quick-chip liquid-glass-pill px-2.5 py-1 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 transition-all cursor-pointer font-sans" data-prompt="What if I upgrade crypto-jwt library to version 3.0.0?">
+                🔑 Upgrade crypto-jwt
+              </button>
+            </div>
+            <div class="text-[11px] text-slate-500 font-mono hidden md:block">
+              Press <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Enter</kbd> to run
+            </div>
+          </div>
+        </form>
+
+        <!-- Loading Step Indicator -->
+        <div id="simulation-loading" class="hidden mt-4 pt-4 border-t border-white/10 flex items-center space-x-3 text-xs text-cyan-300 font-mono">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+          <span id="loading-step-text">Forking isolated FalkorDB graph...</span>
+        </div>
+      </div>
+
+      <!-- Curated E-Commerce Architecture Incident Presets -->
+      <div>
+        <div class="flex items-center justify-between mb-3 px-1">
+          <h3 class="text-xs font-mono font-semibold uppercase tracking-wider text-slate-400">
+            Dedicated E-Commerce Incident Presets
+          </h3>
+          <span class="text-[11px] text-slate-500 font-mono">1-click automated simulation</span>
+        </div>
+        <div id="preset-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <!-- Preset 1: Stripe Payment Timeout -->
+          <button id="preset-stripe" type="button" class="liquid-glass liquid-glass-interactive p-4 text-left transition-all duration-300 group cursor-pointer relative overflow-hidden" onclick="runPresetScenario('scenario_stripe_timeout')">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded-full border border-rose-500/30 text-rose-400 bg-rose-500/10">
+                Payment Failover
+              </span>
+              <svg class="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+              </svg>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200 group-hover:text-white mb-1 transition-colors">
+              Flash Sale Stripe Timeout
+            </h4>
+            <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Stripe pool exhaustion at 450 orders/min. Evaluates PayPal backup routing and $38,025/min revenue risk.
+            </p>
+          </button>
+
+          <!-- Preset 2: Redis Cart Cache Eviction -->
+          <button id="preset-redis" type="button" class="liquid-glass liquid-glass-interactive p-4 text-left transition-all duration-300 group cursor-pointer relative overflow-hidden" onclick="runPresetScenario('scenario_redis_cart')">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded-full border border-amber-500/30 text-amber-400 bg-amber-500/10">
+                Cart Collapse
+              </span>
+              <svg class="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+              </svg>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200 group-hover:text-white mb-1 transition-colors">
+              Black Friday Cart Eviction
+            </h4>
+            <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Catastrophic loss of Redis session cluster. Traces 105,000 lost shopping baskets and auth drops.
+            </p>
+          </button>
+
+          <!-- Preset 3: Inventory DB Row Lockup -->
+          <button id="preset-inventory" type="button" class="liquid-glass liquid-glass-interactive p-4 text-left transition-all duration-300 group cursor-pointer relative overflow-hidden" onclick="runPresetScenario('scenario_inventory_deadlock')">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded-full border border-indigo-500/30 text-indigo-400 bg-indigo-500/10">
+                DB Deadlock
+              </span>
+              <svg class="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+              </svg>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200 group-hover:text-white mb-1 transition-colors">
+              Inventory Row-Lock Deadlock
+            </h4>
+            <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              PostgreSQL row contention during SKU reservation. Traces queue backup into checkout-service.
+            </p>
+          </button>
+
+          <!-- Preset 4: JWT SDK Upgrade -->
+          <button id="preset-jwt" type="button" class="liquid-glass liquid-glass-interactive p-4 text-left transition-all duration-300 group cursor-pointer relative overflow-hidden" onclick="runPresetScenario('scenario_jwt_upgrade')">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded-full border border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                SDK Upgrade
+              </span>
+              <svg class="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+              </svg>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200 group-hover:text-white mb-1 transition-colors">
+              Upgrade crypto-jwt v3.0
+            </h4>
+            <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Simulates major auth token library bump and detects breaking changes across checkout & user services.
+            </p>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Simulation Results Dashboard (Hidden until run) -->
+    <section id="results-wrapper" class="hidden space-y-6">
+      <div class="liquid-glass p-6 sm:p-7 space-y-6 border-cyan-500/20">
+
+        <!-- Report Header -->
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-white/10">
+          <div>
+            <div class="flex items-center space-x-2.5 mb-1">
+              <span id="report-type-badge" class="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full border border-rose-500/40 text-rose-400 bg-rose-500/10">FAILURE</span>
+              <h3 id="report-target" class="text-lg sm:text-xl font-bold text-white tracking-tight">Stripe Payments</h3>
+            </div>
+            <p class="text-xs text-slate-400">Intervention executed against isolated memory fork <code id="report-fork-id" class="text-cyan-400 font-mono">sim_ephemeral</code></p>
+          </div>
+          <div class="flex items-center space-x-3">
+            <div class="text-right">
+              <div class="text-[10px] uppercase font-mono text-slate-500">Execution Speed</div>
+              <div id="report-exec-time" class="text-sm font-mono font-bold text-slate-200">120ms</div>
+            </div>
+            <button id="btn-reset-results" type="button" class="liquid-glass-pill px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:border-white/30 transition-all cursor-pointer">
+              Close Report
+            </button>
+          </div>
+        </div>
+
+        <!-- E-Commerce Primary Business Impact Metrics Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <!-- Blast Radius Gauge -->
+          <div class="liquid-glass p-4 text-center relative overflow-hidden flex flex-col justify-center items-center">
+            <span class="text-[11px] font-mono uppercase text-slate-400 mb-1">Architecture Blast Radius</span>
+            <div id="blast-score-val" class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-300 font-mono">
+              0.0%
+            </div>
+            <span class="text-[10px] text-slate-500 mt-1">Platform Impact</span>
+          </div>
+
+          <!-- Revenue at Risk / Minute -->
+          <div class="liquid-glass p-4 text-center flex flex-col justify-center items-center border-rose-500/20">
+            <span class="text-[11px] font-mono uppercase text-rose-300 mb-1">Revenue Flow at Risk</span>
+            <div id="revenue-risk-val" class="text-2xl sm:text-3xl font-extrabold text-rose-400 font-mono">$38,025 <span class="text-xs text-rose-300/80 font-sans">/ min</span></div>
+            <span class="text-[10px] text-rose-400/80 mt-1">450 Orders/Min Stalled</span>
+          </div>
+
+          <!-- Abandoned Shopping Carts -->
+          <div class="liquid-glass p-4 text-center flex flex-col justify-center items-center">
+            <span class="text-[11px] font-mono uppercase text-slate-400 mb-1">Abandoned Carts</span>
+            <div id="affected-users-count" class="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono">105,000</div>
+            <span class="text-[10px] text-amber-400/80 mt-1">Active Customer Baskets</span>
+          </div>
+
+          <!-- Interrupted Funnel Stage -->
+          <div class="liquid-glass p-4 text-center flex flex-col justify-center items-center">
+            <span class="text-[11px] font-mono uppercase text-slate-400 mb-1">Funnel Interruption</span>
+            <div id="funnel-stage-val" class="text-xs sm:text-sm font-bold text-cyan-300 font-mono px-2 py-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-center">
+              Stage 4: Payment Capture
+            </div>
+            <span class="text-[10px] text-cyan-400/80 mt-1">Checkout Pipeline Stage</span>
+          </div>
+        </div>
+
+        <!-- Executive AI Briefing (Markdown) -->
+        <div class="liquid-glass p-5 bg-slate-950/40 border-cyan-500/20">
+          <div class="flex items-center space-x-2 text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>E-Commerce Incident Executive Briefing</span>
+          </div>
+          <div id="executive-summary-text" class="executive-summary-content text-sm text-slate-300 leading-relaxed font-sans">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
+
+        <!-- Architectural Cascade Flow (Visual Propagation Chain) -->
+        <div class="liquid-glass p-5 border-cyan-500/20 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-mono uppercase tracking-wider text-slate-300 flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              <span>Causal Blast Radius Propagation Chain</span>
+            </h4>
+            <span class="text-[11px] font-mono text-slate-500">Multi-Hop Topological Cascade</span>
+          </div>
+          <div id="cascade-flow-container">
+            <!-- Populated dynamically by app.js -->
+          </div>
+        </div>
+
+        <!-- Actionable Recommendations -->
+        <div class="liquid-glass p-5">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-slate-400 mb-3 flex items-center space-x-2">
+            <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <span>Mitigation & Immediate Failover Playbook</span>
+          </h4>
+          <ul id="recommendations-list" class="space-y-2.5">
+            <!-- Populated by app.js -->
+          </ul>
+        </div>
+
+        <!-- Cascading Blast Details Grid (Services & Endpoints) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Impacted Services -->
+          <div class="liquid-glass p-4 space-y-3">
+            <h5 class="text-xs font-mono uppercase text-slate-400 tracking-wider">Cascading Microservice Outages</h5>
+            <div id="impacted-services-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <!-- Populated by app.js -->
+            </div>
+          </div>
+
+          <!-- Broken Ingress Endpoints -->
+          <div class="liquid-glass p-4 space-y-3">
+            <h5 class="text-xs font-mono uppercase text-slate-400 tracking-wider">Compromised Public Ingress Endpoints</h5>
+            <div id="broken-endpoints-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <!-- Populated by app.js -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Codebase Ingestion Modal (Folder / Zip File Analysis) -->
+    <div id="ingest-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div class="liquid-glass w-full max-w-2xl p-6 sm:p-7 space-y-5 border-cyan-500/30 shadow-2xl relative">
+        <div class="flex items-center justify-between pb-4 border-b border-white/10">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">Ingest Custom Store Repository</h3>
+              <p class="text-xs text-slate-400">Analyze an entire e-commerce codebase via Directory or .ZIP archive</p>
+            </div>
+          </div>
+          <button id="btn-close-ingest" type="button" class="liquid-glass-pill p-1.5 text-slate-400 hover:text-white transition-all cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Loading & Progress Indicator -->
+        <div id="ingest-status" class="hidden p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center space-x-3 text-xs text-cyan-300 font-mono">
+          <svg class="animate-spin h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span id="ingest-status-text">Uploading & parsing codebase manifests...</span>
+        </div>
+
+        <!-- Ingestion Options Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Option A: ZIP Archive Upload -->
+          <div id="dropzone" class="border-2 border-dashed border-white/15 hover:border-cyan-400/50 rounded-xl p-6 text-center space-y-2 bg-slate-950/40 transition-all cursor-pointer flex flex-col justify-center items-center">
+            <input type="file" id="file-upload-input" accept=".zip" class="hidden" />
+            <div class="w-10 h-10 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <span class="text-xs font-semibold text-slate-200">Upload .ZIP Archive</span>
+            <p class="text-[11px] text-slate-400 leading-tight">Drag & drop codebase zip (package.json, Dockerfile, routes)</p>
+          </div>
+
+          <!-- Option B: Local Directory Path Analysis -->
+          <div class="p-4 rounded-xl bg-slate-950/40 border border-white/10 space-y-2.5 flex flex-col justify-between">
+            <div>
+              <span class="text-xs font-semibold text-slate-200 block mb-1">Local Host Directory</span>
+              <p class="text-[11px] text-slate-400 leading-tight mb-2">Analyze any local microservice project folder directly</p>
+              <input
+                id="dir-path-input"
+                type="text"
+                placeholder="e.g. D:/nodewave/ConseQ or ./my-store"
+                value="."
+                class="w-full px-2.5 py-1.5 text-xs rounded-lg bg-slate-900 border border-white/10 text-white font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+              />
+            </div>
+            <button
+              id="btn-ingest-dir"
+              type="button"
+              class="w-full py-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/30 text-indigo-300 font-medium text-xs transition-all cursor-pointer"
+            >
+              Analyze Local Directory
+            </button>
+          </div>
+        </div>
+
+        <!-- Feasibility & Technical Brief Card -->
+        <div class="p-3.5 rounded-xl bg-slate-900/70 border border-white/5 space-y-1.5 text-xs text-slate-300">
+          <div class="flex items-center space-x-2 text-cyan-400 font-mono font-semibold text-[11px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+            <span>Feature Operational: End-to-End Multi-Graph Ingestion Active</span>
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            FalkorDB creates an isolated project graph (<code class="text-cyan-300 font-mono">proj_&lt;id&gt;</code>) for the ingested code. The simulation agent then executes what-if scenarios directly against your repository's microservices and routes.
+          </p>
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 pt-1">
+          <button id="btn-close-ingest-secondary" type="button" class="liquid-glass-pill px-4 py-1.5 text-xs text-slate-400 hover:text-white transition-all cursor-pointer">
+            Close
+          </button>
+          <button id="btn-simulate-sample-repo" type="button" class="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-obsidian font-bold text-xs transition-all cursor-pointer">
+            Analyze Current Workspace
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="pt-6 pb-8 border-t border-white/10 text-center text-xs text-slate-500 space-y-1">
+      <p>ConseQ / ECHO — E-Commerce Reliability & Blast Radius Simulator • FalkorDB & Gemini Flash</p>
+      <p class="text-[11px] font-mono text-slate-600">Zero live store mutations • Isolated graph fork architecture</p>
+    </footer>
+
+  </div>
+
+  <!-- Application Scripts -->
+  <script src="js/mock-data.js"></script>
+  <script src="js/ambient-network.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
