@@ -33,13 +33,69 @@ def resolve_target_entity(
     norm = query_str.strip().lower().replace(" ", "-").replace("_", "-")
     clean_kw = query_str.strip().lower()
 
-    # Exact indexed IDs are the common path; exact names are next. Partial
-    # matching remains a convenience for natural-language prompts.
+    # Canonical alias dictionary for natural-language prompts
+    ALIASES = {
+        "api key": "svc_gateway",
+        "api-key": "svc_gateway",
+        "api_key": "svc_gateway",
+        "api keys": "svc_gateway",
+        "apikey": "svc_gateway",
+        "api-gateway": "svc_gateway",
+        "api gateway": "svc_gateway",
+        "gateway": "svc_gateway",
+        "ingress": "svc_gateway",
+        "routing": "svc_gateway",
+        "auth": "svc_auth",
+        "auth-service": "svc_auth",
+        "authentication": "svc_auth",
+        "login": "svc_auth",
+        "tokens": "svc_auth",
+        "jwt": "lib_jwt",
+        "crypto-jwt": "lib_jwt",
+        "payment": "svc_payment",
+        "payments": "svc_payment",
+        "payment-service": "svc_payment",
+        "stripe": "tp_stripe",
+        "paypal": "tp_paypal",
+        "cart": "svc_cart",
+        "cart-service": "svc_cart",
+        "checkout": "svc_checkout",
+        "checkout-service": "svc_checkout",
+        "order": "svc_order",
+        "orders": "svc_order",
+        "order-service": "svc_order",
+        "order db": "db_order_pg",
+        "orders db": "db_order_pg",
+        "postgres": "db_order_pg",
+        "redis": "cache_redis_session",
+        "session": "cache_redis_session",
+        "cache": "cache_redis_session",
+        "inventory": "svc_inventory",
+        "inventory-service": "svc_inventory",
+        "user": "svc_user",
+        "user-service": "svc_user",
+        "catalog": "svc_catalog",
+        "catalog-service": "svc_catalog",
+        "search": "svc_search",
+        "search-service": "svc_search",
+        "notification": "svc_notification",
+        "shipping": "svc_shipping",
+        "fraud": "svc_fraud",
+        "kafka": "queue_order_kafka",
+        "twilio": "tp_twilio",
+        "sendgrid": "tp_sendgrid",
+        "datadog": "tp_datadog",
+    }
+
+    alias_target_id = ALIASES.get(clean_kw) or ALIASES.get(norm)
+    lookup_id = alias_target_id or query_str.strip()
+
+    # Exact indexed IDs are the common path; exact names are next.
     exact_id = store.ro_query(
         """MATCH (n) WHERE (n:Service OR n:ThirdParty OR n:Library OR n:Database)
         AND n.id = $id
         RETURN labels(n)[0], n.id, coalesce(n.name, n.id), coalesce(n.tier, 2), coalesce(n.status, 'healthy')""",
-        {"id": query_str.strip()}, graph=graph,
+        {"id": lookup_id}, graph=graph,
     ).result_set
     if exact_id:
         row = exact_id[0]

@@ -79,7 +79,7 @@ Simulation Evidence:
     return None
 
 
-_VALID_TARGET_RE = re.compile(r"^[a-zA-Z0-9_\-\.]{1,128}$")
+_VALID_TARGET_RE = re.compile(r"^[a-zA-Z0-9_\-\.\s]{1,128}$")
 
 
 def run_simulation(

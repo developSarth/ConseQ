@@ -29,16 +29,60 @@ class ParsedIntent(BaseModel):
     reasoning: str = ""
 
 
-_SYSTEM_PROMPT = """You are an intent classification agent for ECHO (Software Failure Simulator).
+_SYSTEM_PROMPT = """You are the AI intent classification agent for ECHO (Enterprise Software Failure Simulator).
 Your task is to analyze user questions about software architectures and categorize them into:
-1. "failure" - simulating an outage, service crash, network partition, or offline component.
+1. "failure" - simulating an outage, service crash, network partition, or component failure.
 2. "upgrade" - analyzing the change impact of updating a shared library, SDK, or dependency.
 3. "recovery" - finding fallback providers, degraded modes, circuit breakers, or failover options.
+
+The software architecture consists of these known components:
+- Microservices:
+  * "api-gateway" (handles API ingress, API keys, public route dispatching)
+  * "auth-service" (user authentication, login sessions, credential verification)
+  * "user-service" (user account profiles and data)
+  * "cart-service" (shopping cart persistence)
+  * "checkout-service" (checkout pipeline orchestration)
+  * "payment-service" (payment authorization and processing)
+  * "order-service" (order management and transactions)
+  * "inventory-service" (stock and warehouse catalog)
+  * "fraud-detection-service" (transaction risk analysis)
+  * "catalog-service" (product listings and details)
+  * "search-service" (product search engine)
+  * "shipping-service" (carrier logistics and shipping rates)
+  * "notification-service" (customer email and SMS alerts)
+  * "recommendation-service" (product recommendations)
+- Datastores & Caches:
+  * "cache_redis_session" (Session Redis Cluster)
+  * "db_auth_pg" (Auth PostgreSQL)
+  * "db_order_pg" (Orders PostgreSQL)
+  * "db_inventory_pg" (Inventory PostgreSQL)
+  * "db_catalog_mongo" (Catalog MongoDB)
+  * "queue_order_kafka" (Order Kafka Event Stream)
+- Third-Party SaaS Providers:
+  * "tp_stripe" (Stripe Payments Gateway)
+  * "tp_paypal" (PayPal Backup Gateway)
+  * "tp_twilio" (Twilio SMS Provider)
+  * "tp_sendgrid" (SendGrid Email Provider)
+  * "tp_datadog" (Datadog APM & Telemetry)
+- Shared Libraries:
+  * "crypto-jwt"
+  * "fintech-payment-sdk"
+  * "grpc-common-proto"
+  * "structured-logger"
+
+CRITICAL INSTRUCTIONS FOR TARGET RESOLUTION:
+- You MUST choose the single best matching component name from the list above for "target_name".
+- If the user mentions "API key", "API keys", "API key fault", "ingress", "gateway", or "routing", map target_name to "api-gateway".
+- If the user mentions "authentication", "login", or "token validation", map target_name to "auth-service".
+- If the user mentions "credit card", "payment", or "Stripe", map target_name to "payment-service" or "tp_stripe".
+- If the user mentions "Redis", "session", or "cache", map target_name to "cache_redis_session".
+- If the user mentions "PostgreSQL" or "Orders DB", map target_name to "db_order_pg".
+- If the user mentions "Kafka" or "event stream", map target_name to "queue_order_kafka".
 
 Return ONLY a JSON object with this exact schema:
 {
   "simulation_type": "failure" | "upgrade" | "recovery",
-  "target_name": "<name of the service, library, or provider mentioned, e.g. 'auth-service', 'stripe', 'crypto-jwt'>",
+  "target_name": "<exact component name from the list above, e.g. 'api-gateway', 'auth-service', 'tp_stripe', 'crypto-jwt'>",
   "target_version": "<target version string if mentioned, e.g. '3.0.0', or null>",
   "action": "<brief description of the action, e.g. 'OUTAGE', 'UPGRADE', 'FAILOVER'>",
   "reasoning": "<brief 1-sentence reason>"
@@ -96,7 +140,7 @@ def _rule_based_fallback(prompt: str) -> ParsedIntent:
 
     # 3. Default to failure simulation
     # Match specific multi-word infrastructure first
-    if "api-gateway" in text or "api gateway" in text:
+    if "api-gateway" in text or "api gateway" in text or "api key" in text or "api-key" in text or "apikey" in text or "ingress" in text:
         target = "svc_gateway"
     elif "fraud" in text:
         target = "svc_fraud"
@@ -156,7 +200,7 @@ def _rule_based_fallback(prompt: str) -> ParsedIntent:
     elif "gateway" in text:
         target = "svc_gateway"
     else:
-        target = "svc_auth"
+        target = "svc_gateway"
 
     return ParsedIntent(
         simulation_type=SimulationType.FAILURE,
@@ -167,7 +211,7 @@ def _rule_based_fallback(prompt: str) -> ParsedIntent:
     )
 
 
-_VALID_TARGET_NAME = re.compile(r"^[a-zA-Z0-9_\-\.]{1,128}$")
+_VALID_TARGET_NAME = re.compile(r"^[a-zA-Z0-9_\-\.\s]{1,128}$")
 _VALID_VERSION = re.compile(r"^[vV]?[0-9]+(\.[0-9]+)*(-[a-zA-Z0-9_\.]+)?$")
 
 
@@ -202,6 +246,39 @@ def parse_intent(prompt: str, settings: Settings) -> ParsedIntent:
             if not raw_target or not _VALID_TARGET_NAME.match(raw_target):
                 log.warning("Unsafe or invalid target_name '%s' from LLM; using fallback parser", raw_target)
                 return _rule_based_fallback(prompt)
+
+            # Normalize common synonyms from LLM output
+            norm_target = raw_target.lower()
+            if any(k in norm_target for k in ("api key", "api-key", "apikey", "gateway", "ingress")):
+                raw_target = "api-gateway"
+            elif norm_target == "payment service":
+                raw_target = "payment-service"
+            elif norm_target == "auth service":
+                raw_target = "auth-service"
+            elif norm_target == "order service":
+                raw_target = "order-service"
+            elif norm_target == "cart service":
+                raw_target = "cart-service"
+            elif norm_target == "checkout service":
+                raw_target = "checkout-service"
+            elif norm_target == "inventory service":
+                raw_target = "inventory-service"
+            elif norm_target == "user service":
+                raw_target = "user-service"
+            elif norm_target == "shipping service":
+                raw_target = "shipping-service"
+            elif norm_target == "catalog service":
+                raw_target = "catalog-service"
+            elif norm_target == "search service":
+                raw_target = "search-service"
+            elif norm_target == "notification service":
+                raw_target = "notification-service"
+            elif norm_target == "recommendation service":
+                raw_target = "recommendation-service"
+            elif norm_target == "fraud service" or norm_target == "fraud detection":
+                raw_target = "fraud-detection-service"
+            else:
+                raw_target = raw_target.replace(" ", "-")
 
             raw_ver = data.get("target_version")
             if raw_ver and not _VALID_VERSION.match(str(raw_ver).strip()):

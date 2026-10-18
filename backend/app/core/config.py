@@ -69,7 +69,7 @@ class Settings(BaseSettings):
 
     # --- External AI ---------------------------------------------------------
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = Field(default="gemini-2.5-flash")
+    gemini_model: str = Field(default="gemini-3.8-flash")
 
     @field_validator("gemini_api_key", mode="before")
     @classmethod

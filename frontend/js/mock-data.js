@@ -407,6 +407,129 @@ window.MOCK_REPORTS = {
         { id: "team_identity", name: "Identity & Access Team", slack_channel: "#team-identity", oncall_lead: "Sarah Chen", reason: "Direct owner of auth-service" }
       ]
     }
+  },
+
+  // 7. API Gateway / API Key / Ingress Failure
+  api_gateway: {
+    id: "echo_gateway_outage",
+    prompt: "What happens if there is an API key fault?",
+    type: "failure",
+    target_entity: "api-gateway",
+    blast_radius_score: 7.1,
+    execution_time_ms: 105.2,
+    fork_graph: "sim_gateway_fork",
+    executive_summary: "Simulated ingress authorization and routing outage on **api-gateway** caused by an API key validation and certificate verification fault. The failure isolates external traffic before reaching downstream services. **1 Tier-1 service** is directly impaired, blocking incoming HTTP/REST requests across all public ingress channels while backend internal service-to-service RPCs remain operational.",
+    actionable_recommendations: [
+      "Rotate compromised or expired API gateway master signing keys and flush the ingress authorization cache.",
+      "Engage Core Platform SRE Team (Alex Rivera) via Slack #team-platform.",
+      "Verify fallback routing to secondary ingress envoy proxies to restore external public API availability.",
+      "Check rate-limiting and authorization token expiration logs to prevent false-positive client rejections."
+    ],
+    outage_details: {
+      target_id: "svc_gateway",
+      target_name: "api-gateway",
+      target_type: "Service",
+      blast_radius_percent: 7.1,
+      tier1_services_down: 1,
+      tier2_services_down: 0,
+      tier3_services_down: 0,
+      impacted_services: [
+        { id: "svc_gateway", name: "api-gateway", tier: 1, impact: "outage", hops_from_target: 0, team_name: "Core Platform SRE Team" }
+      ],
+      broken_endpoints: [
+        { id: "ep_login", path: "/api/v1/auth/login", method: "POST", status: "degraded", service_id: "svc_auth" },
+        { id: "ep_get_products", path: "/api/v1/catalog/items", method: "GET", status: "degraded", service_id: "svc_catalog" },
+        { id: "ep_checkout_submit", path: "/api/v1/checkout/submit", method: "POST", status: "degraded", service_id: "svc_checkout" }
+      ],
+      impacted_clients: [
+        { id: "app_web", name: "Web Storefront", platform: "web", active_users: 45000 },
+        { id: "app_ios", name: "iOS Native App", platform: "ios", active_users: 28000 },
+        { id: "app_android", name: "Android App", platform: "android", active_users: 32000 },
+        { id: "app_partner_api", name: "B2B Ingestion API", platform: "b2b", active_users: 1200 }
+      ],
+      impacted_teams: [
+        { id: "team_platform", name: "Core Platform SRE Team", slack_channel: "#team-platform", oncall_lead: "Alex Rivera", reason: "Direct owner of api-gateway" }
+      ]
+    }
+  },
+
+  // 8. Inventory Service Outage
+  inventory: {
+    id: "echo_inventory_outage",
+    prompt: "What happens if inventory-service fails?",
+    type: "failure",
+    target_entity: "inventory-service",
+    blast_radius_score: 28.6,
+    execution_time_ms: 114.7,
+    fork_graph: "sim_inventory_fork",
+    executive_summary: "Simulated outage of core Tier-1 service **inventory-service**. Real-time SKU stock validation and warehouse reservations are offline. The outage propagates upstream to `checkout-service`, degrading checkout conversions.",
+    actionable_recommendations: [
+      "Enable optimistic stock reservation mode in `checkout-service` to allow order placement with async validation.",
+      "Page Fulfillment & Logistics Team Lead (Elena Rostova) via Slack #team-logistics.",
+      "Verify read-replica health on Inventory PostgreSQL (`db_inventory_pg`)."
+    ],
+    outage_details: {
+      target_id: "svc_inventory",
+      target_name: "inventory-service",
+      target_type: "Service",
+      blast_radius_percent: 28.6,
+      tier1_services_down: 2,
+      tier2_services_down: 0,
+      tier3_services_down: 0,
+      impacted_services: [
+        { id: "svc_checkout", name: "checkout-service", tier: 1, impact: "degraded", hops_from_target: 1, team_name: "Checkout & Billing Team" }
+      ],
+      broken_endpoints: [
+        { id: "ep_checkout_submit", path: "/api/v1/checkout/submit", method: "POST", status: "degraded", service_id: "svc_checkout" }
+      ],
+      impacted_clients: [
+        { id: "app_web", name: "Web Storefront", platform: "web", active_users: 45000 },
+        { id: "app_ios", name: "iOS Native App", platform: "ios", active_users: 28000 }
+      ],
+      impacted_teams: [
+        { id: "team_logistics", name: "Fulfillment & Logistics Team", slack_channel: "#team-logistics", oncall_lead: "Elena Rostova", reason: "Direct owner of inventory-service" }
+      ]
+    }
+  },
+
+  // 9. Cart Service Outage
+  cart: {
+    id: "echo_cart_outage",
+    prompt: "What happens if cart-service goes offline?",
+    type: "failure",
+    target_entity: "cart-service",
+    blast_radius_score: 21.4,
+    execution_time_ms: 98.4,
+    fork_graph: "sim_cart_fork",
+    executive_summary: "Simulated outage of **cart-service**. Shopping cart modifications and item persistence fail across Web and Mobile storefronts. **2 endpoints** are down.",
+    actionable_recommendations: [
+      "Engage client-side local storage fallback in Web and iOS clients for temporary cart caching.",
+      "Page Checkout & Billing Team (Marcus Vance) via Slack #team-checkout.",
+      "Check Redis session cluster connectivity."
+    ],
+    outage_details: {
+      target_id: "svc_cart",
+      target_name: "cart-service",
+      target_type: "Service",
+      blast_radius_percent: 21.4,
+      tier1_services_down: 1,
+      tier2_services_down: 1,
+      tier3_services_down: 0,
+      impacted_services: [
+        { id: "svc_checkout", name: "checkout-service", tier: 1, impact: "degraded", hops_from_target: 1, team_name: "Checkout & Billing Team" }
+      ],
+      broken_endpoints: [
+        { id: "ep_view_cart", path: "/api/v1/cart", method: "GET", status: "outage", service_id: "svc_cart" },
+        { id: "ep_add_cart", path: "/api/v1/cart/items", method: "POST", status: "outage", service_id: "svc_cart" }
+      ],
+      impacted_clients: [
+        { id: "app_web", name: "Web Storefront", platform: "web", active_users: 45000 },
+        { id: "app_ios", name: "iOS Native App", platform: "ios", active_users: 28000 }
+      ],
+      impacted_teams: [
+        { id: "team_checkout", name: "Checkout & Billing Team", slack_channel: "#team-checkout", oncall_lead: "Marcus Vance", reason: "Direct owner of cart-service" }
+      ]
+    }
   }
 };
 

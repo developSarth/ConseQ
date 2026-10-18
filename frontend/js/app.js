@@ -7,9 +7,10 @@
  * - 100% Native High-Sensitivity Scrolling & Clean Minimalist Aesthetics
  */
 
-const API_BASE = (window.location.protocol === "file:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "")
+let API_BASE = (window.location.protocol === "file:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "")
   ? "http://localhost:8000"
   : "https://echo-backend-rjls.onrender.com";
+const CLOUD_API_BASE = "https://echo-backend-rjls.onrender.com";
 
 class AppState {
   constructor() {
@@ -146,10 +147,18 @@ async function checkSystemStatus() {
 
   try {
     const t0 = performance.now();
-    const res = await fetch(`${API_BASE}/graph/ping`, { method: "GET" });
+    let res = null;
+    try {
+      res = await fetch(`${API_BASE}/graph/ping`, { method: "GET" });
+    } catch (e) {
+      if (API_BASE !== CLOUD_API_BASE) {
+        API_BASE = CLOUD_API_BASE;
+        res = await fetch(`${API_BASE}/graph/ping`, { method: "GET" });
+      }
+    }
     const latency = Math.round(performance.now() - t0);
 
-    if (res.ok) {
+    if (res && res.ok) {
       const data = await res.json();
       state.backendOnline = true;
       if (statusDot) statusDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400";
@@ -233,13 +242,27 @@ async function executeSimulation(prompt) {
   try {
     const payload = { prompt };
 
-    const res = await fetch(`${API_BASE}/simulate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let res = null;
+    try {
+      res = await fetch(`${API_BASE}/simulate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (netErr) {
+      if (API_BASE !== CLOUD_API_BASE) {
+        API_BASE = CLOUD_API_BASE;
+        res = await fetch(`${API_BASE}/simulate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        throw netErr;
+      }
+    }
 
-    if (res.ok) {
+    if (res && res.ok) {
       report = await res.json();
     } else {
       report = pickMatchingMockReport(prompt);
@@ -287,34 +310,80 @@ function pickMatchingMockReport(prompt) {
   const text = (prompt || "").toLowerCase();
   const reports = window.MOCK_REPORTS || {};
 
-  // 1. Library upgrade scenarios
-  if (text.includes("upgrade") || text.includes("jwt") || text.includes("crypto") || text.includes("version 3") || text.includes("v3")) {
+  // 1. Ingress / API Key / Gateway
+  if (
+    text.includes("api key") ||
+    text.includes("api-key") ||
+    text.includes("apikey") ||
+    text.includes("gateway") ||
+    text.includes("ingress") ||
+    text.includes("routing")
+  ) {
+    return reports.api_gateway || reports.default;
+  }
+
+  // 2. Library upgrade scenarios
+  if (
+    text.includes("upgrade") ||
+    text.includes("jwt") ||
+    text.includes("crypto") ||
+    text.includes("version 3") ||
+    text.includes("v3") ||
+    text.includes("library") ||
+    text.includes("bump") ||
+    text.includes("dependency")
+  ) {
     return reports.jwt || reports.default;
   }
 
-  // 2. Stripe payment gateway vs payment-service
+  // 3. Payment Service vs Stripe
   if (text.includes("stripe")) {
     return reports.stripe || reports.default;
   }
-  if (text.includes("payment-service") || text.includes("payment service") || (text.includes("payment") && !text.includes("gateway"))) {
+  if (
+    text.includes("payment-service") ||
+    text.includes("payment service") ||
+    text.includes("payment") ||
+    text.includes("checkout")
+  ) {
     return reports.payment_service || reports.stripe || reports.default;
   }
-  if (text.includes("gateway") && !text.includes("api-gateway")) {
-    return reports.stripe || reports.default;
-  }
 
-  // 3. Redis / Session Cache
+  // 4. Redis / Session Cache
   if (text.includes("redis") || text.includes("session") || text.includes("cache")) {
     return reports.redis || reports.default;
   }
 
-  // 4. Orders Datastore / Order Service
+  // 5. Orders Datastore / Order Service
   if (text.includes("order") && (text.includes("db") || text.includes("database") || text.includes("postgres") || text.includes("crash"))) {
     return reports.order_db || reports.default;
   }
+  if (text.includes("order")) {
+    return reports.order_db || reports.default;
+  }
 
-  // 5. Auth Service / Login / Default
-  return reports.default || window.MOCK_FAILURE_REPORT;
+  // 6. Inventory Service
+  if (text.includes("inventory") || text.includes("stock") || text.includes("warehouse")) {
+    return reports.inventory || reports.default;
+  }
+
+  // 7. Cart Service
+  if (text.includes("cart")) {
+    return reports.cart || reports.default;
+  }
+
+  // 8. Auth Service
+  if (
+    text.includes("auth") ||
+    text.includes("login") ||
+    text.includes("credential") ||
+    text.includes("identity") ||
+    text.includes("token")
+  ) {
+    return reports.default || window.MOCK_FAILURE_REPORT;
+  }
+
+  return reports.api_gateway || reports.default || window.MOCK_FAILURE_REPORT;
 }
 
 /* ==========================================================================
