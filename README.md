@@ -1,6 +1,10 @@
-# ECHO — AI-Powered Software Architecture & Failure Simulator
+# ECHO — Software Architecture & Failure Simulator
 
 > **Simulate cascading software failures, blast radius, and dependency upgrades on isolated in-memory graph forks before deploying to production.**
+
+**Live demo:** [conseq.pages.dev](https://conseq.pages.dev/)
+**Recorded demo:** [Watch the demo](https://youtu.be/eZdVMQogYg4)
+**Track:** Agents with connected Data
 
 ---
 
@@ -93,6 +97,8 @@ ECHO models full-stack distributed systems as a directed labeled property graph 
     ▼                      ▼                      ▼
  (Team)                 (Team)               (ThirdParty)
 ```
+
+For the main traversals, impact queries, fork simulations, and ingestion patterns used by ConseQ, see [Graph Algorithms and Cypher Queries](docs/GRAPH_ALGORITHMS_AND_QUERIES.md).
 
 ### Node Labels
 
