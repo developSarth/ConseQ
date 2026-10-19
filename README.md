@@ -4,7 +4,7 @@
 
 **Live demo:** [conseq.pages.dev](https://conseq.pages.dev/)
 **Recorded demo:** [Watch the demo](https://youtu.be/eZdVMQogYg4)
-**Track:** Agents with connected Data
+**Track:** Agents That Act On Connected Data
 
 ---
 
